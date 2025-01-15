@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # ---------------------
     # 1) Fetch SPY data
     # ---------------------
-    spy_data = yf.download("SPY", start="2010-01-01", end="2023-01-01", auto_adjust=True)
+    spy_data = yf.download("SPY", start="2009-01-01", end="2026-01-01", auto_adjust=True)
     # Make tomorrow's Close the 'TARGET'
     spy_data['TARGET'] = spy_data['Close'].shift(-1)
     # Keep only columns we need
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     
     industry_data = yf.download(
         industry_tickers,
-        start="2010-01-01",
-        end="2023-01-01",
+        start="2009-01-01",
+        end="2026-01-01",
         auto_adjust=True
     )['Close']
 
@@ -199,5 +199,7 @@ if __name__ == "__main__":
     # ---------------------
     # 10) Save Output
     # ---------------------
-    predictions.to_csv("predictions.csv", index=False)
+
+    output_path = "data/predictions.csv"
+    predictions.to_csv(output_path, index=False)
     print("Predictions saved to predictions.csv.")

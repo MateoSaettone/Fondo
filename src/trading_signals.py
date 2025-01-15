@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # Load predictions (adjust this path to match your predictions file)
-predictions = pd.read_csv("predictions.csv")
+predictions = pd.read_csv("data/predictions.csv")
 
 # Ensure the data types are correct
 predictions['Actual'] = predictions['Actual'].astype(float)
@@ -66,7 +66,9 @@ if __name__ == "__main__":
     add_moving_average_signals(predictions, ma_window=ma_window, threshold=threshold)
 
     # Save the results to a new CSV file
-    predictions.to_csv("predictions_with_signals.csv", index=False)
+    output_path = "data/predictions_with_signals.csv"
+    predictions.to_csv(output_path, index=False)
+
 
     # Print sample results
     print(predictions.head(20))

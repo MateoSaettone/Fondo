@@ -62,7 +62,7 @@ if __name__ == "__main__":
     from api_integration import fetch_historical_data
 
     # Fetch historical data
-    df = fetch_historical_data("SPY", "2010-01-01", "2023-01-01")
+    df = fetch_historical_data("SPY", "2009-01-01", "2026-01-01")
     
     # Add features
     df = add_features(df)

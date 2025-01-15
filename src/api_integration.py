@@ -16,7 +16,7 @@ Returns:
                         Date, Price, High, Low, Open, Volume.
 """
 
-def fetch_historical_data(ticker, start_date="2010-01-01", end_date="2023-01-01"):
+def fetch_historical_data(ticker, start_date="2009-01-01", end_date="2026-01-01"):
     data = yf.download(ticker, start=start_date, end=end_date, interval="1d", auto_adjust=True)
     data.reset_index(inplace=True)
     data.rename(columns={"Close": "Price"}, inplace=True)
@@ -24,7 +24,7 @@ def fetch_historical_data(ticker, start_date="2010-01-01", end_date="2023-01-01"
     return data
 
 if __name__ == "__main__":
-    df = fetch_historical_data("SPY", "2010-01-01", "2023-01-01")
+    df = fetch_historical_data("SPY", "2009-01-01", "2026-01-01")
     print(df.head())
     df.to_csv("data/sp500_historical.csv", index=False)
     print("Data saved to data/sp500_historical.csv")
