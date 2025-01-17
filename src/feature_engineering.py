@@ -59,7 +59,7 @@ def add_features(data):
 
 if __name__ == "__main__":
     # Import fetch_historical_data from api_integration
-    from api_integration import fetch_historical_data
+    from pricesDataframe import fetch_historical_data
 
     # Fetch historical data
     df = fetch_historical_data("SPY", "2009-01-01", "2026-01-01")
