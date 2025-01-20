@@ -5,6 +5,7 @@ import statsmodels.api as sm
 from config import tickers, industries, records
 from betas import calculate_rolling_beta, normalize_betas, update_betas_with_prices
 from data import fetch_yahoo_data
+from backtesting import perform_backtest
 
 # ============================================
 #             Virtual Environment Setup
@@ -363,67 +364,12 @@ df_final['Order'] = df_final.apply(
 )
 
 # ============================================
-#           Calculate Prediction Precision
+#        Perform Backtesting
 # ============================================
 
-# Determine if the prediction was correct
-df_final['Precision'] = df_final.apply(
-    lambda row: 1 if (
-        (row['Order'] == 'CALL' and row['High'] > row['PRED_SAME_DATE']) or 
-        (row['Order'] == 'PUT' and row['Low'] < row['PRED_SAME_DATE'])
-    ) else 0, axis=1
-)
-
-# ============================================
-#                 Calculate PnL
-# ============================================
-
-# Calculate Profit and Loss based on orders and precision
-df_final['PnL'] = df_final.apply(
-    lambda row: (
-        (row['PRED_SAME_DATE'] - row['Open']) * 85 if row['Precision'] == 1 and row['Order'] == 'CALL' else
-        (row['Close'] - row['Open']) * 85 if row['Precision'] == 0 and row['Order'] == 'CALL' else
-        (row['Open'] - row['PRED_SAME_DATE']) * 85 if row['Precision'] == 1 and row['Order'] == 'PUT' else
-        (row['Open'] - row['Close']) * 85 if row['Precision'] == 0 and row['Order'] == 'PUT' else 0
-    ), axis=1
-)
-
-# ============================================
-#          Handle Low PnL Values
-# ============================================
-
-# Replace any PnL values lower than -70 with -70
-df_final['PnL'] = df_final['PnL'].apply(lambda x: -70 if x < -70 else x)
-
-# ============================================
-#            Calculate Efficiency
-# ============================================
-
-# Determine efficiency based on positive PnL
-df_final['Efficiency'] = df_final['PnL'].apply(lambda x: 1 if x > 0 else 0)
-
-# ============================================
-#       Calculate Average Efficiency and PnL
-# ============================================
-
-# Load the backtest results from CSV
-bt_results = pd.read_csv('BT_RESULTS.csv')
-
-# Calculate average Efficiency
-average_efficiency = bt_results['Efficiency'].mean()
-
-# Calculate average PnL
-average_pnl = bt_results['PnL'].mean()
-
-# ============================================
-#            Save Backtest Results
-# ============================================
-
-# Save the final backtest results to a CSV file
-df_final.to_csv('BT_RESULTS.csv')
+# Perform backtesting and get average efficiency and PnL
+average_efficiency, average_pnl = perform_backtest(df_final, filepath='BT_RESULTS.csv')
 
 # Print the results
 print(f"Average Efficiency: {average_efficiency:.2f}")
 print(f"Average PnL: {average_pnl:.2f}")
-
-
