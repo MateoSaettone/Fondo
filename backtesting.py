@@ -3,22 +3,46 @@
 import pandas as pd
 import numpy as np
 
+def determine_trading_orders(df_final):
+    """
+    Determine trading orders ('CALL' or 'PUT') based on predictions.
+    
+    Parameters:
+    - df_final (pd.DataFrame): DataFrame containing 'PRED_SAME_DATE' and 'Open' columns.
+    
+    Returns:
+    - pd.DataFrame: Updated DataFrame with 'Order' column.
+    """
+    if 'PRED_SAME_DATE' not in df_final.columns or 'Open' not in df_final.columns:
+        raise KeyError("DataFrame must contain 'PRED_SAME_DATE' and 'Open' columns to determine orders.")
+    
+    # Vectorized operation for better performance
+    df_final['Order'] = np.where(df_final['PRED_SAME_DATE'] > df_final['Open'], 'CALL', 'PUT')
+    
+    return df_final
+
 def calculate_precision(df_final):
     """
     Determine if the prediction was correct and add a 'Precision' column.
     
     Parameters:
-    - df_final (pd.DataFrame): DataFrame containing prediction and actual data.
+    - df_final (pd.DataFrame): DataFrame containing 'Order', 'High', 'Low', and 'PRED_SAME_DATE' columns.
     
     Returns:
     - pd.DataFrame: Updated DataFrame with 'Precision' column.
     """
-    df_final['Precision'] = df_final.apply(
-        lambda row: 1 if (
-            (row['Order'] == 'CALL' and row['High'] > row['PRED_SAME_DATE']) or 
-            (row['Order'] == 'PUT' and row['Low'] < row['PRED_SAME_DATE'])
-        ) else 0, axis=1
+    required_columns = ['Order', 'High', 'Low', 'PRED_SAME_DATE']
+    for col in required_columns:
+        if col not in df_final.columns:
+            raise KeyError(f"Column '{col}' is missing from df_final.")
+    
+    # Vectorized calculation for better performance
+    conditions = (
+        ((df_final['Order'] == 'CALL') & (df_final['High'] > df_final['PRED_SAME_DATE'])) |
+        ((df_final['Order'] == 'PUT') & (df_final['Low'] < df_final['PRED_SAME_DATE']))
     )
+    df_final['Precision'] = np.where(conditions, 1, 0)
+    
     return df_final
 
 def calculate_pnl(df_final):
@@ -26,19 +50,31 @@ def calculate_pnl(df_final):
     Calculate Profit and Loss (PnL) based on orders and precision.
     
     Parameters:
-    - df_final (pd.DataFrame): DataFrame containing 'Order' and 'Precision' columns.
+    - df_final (pd.DataFrame): DataFrame containing 'Order', 'Precision', 'PRED_SAME_DATE', 'Open', 'Close' columns.
     
     Returns:
     - pd.DataFrame: Updated DataFrame with 'PnL' column.
     """
-    df_final['PnL'] = df_final.apply(
-        lambda row: (
-            (row['PRED_SAME_DATE'] - row['Open']) * 85 if row['Precision'] == 1 and row['Order'] == 'CALL' else
-            (row['Close'] - row['Open']) * 85 if row['Precision'] == 0 and row['Order'] == 'CALL' else
-            (row['Open'] - row['PRED_SAME_DATE']) * 85 if row['Precision'] == 1 and row['Order'] == 'PUT' else
-            (row['Open'] - row['Close']) * 85 if row['Precision'] == 0 and row['Order'] == 'PUT' else 0
-        ), axis=1
-    )
+    required_columns = ['Order', 'Precision', 'PRED_SAME_DATE', 'Open', 'Close']
+    for col in required_columns:
+        if col not in df_final.columns:
+            raise KeyError(f"Column '{col}' is missing from df_final.")
+    
+    # Vectorized calculation using numpy's select
+    conditions = [
+        (df_final['Precision'] == 1) & (df_final['Order'] == 'CALL'),
+        (df_final['Precision'] == 0) & (df_final['Order'] == 'CALL'),
+        (df_final['Precision'] == 1) & (df_final['Order'] == 'PUT'),
+        (df_final['Precision'] == 0) & (df_final['Order'] == 'PUT')
+    ]
+    choices = [
+        (df_final['PRED_SAME_DATE'] - df_final['Open']) * 85,
+        (df_final['Close'] - df_final['Open']) * 85,
+        (df_final['Open'] - df_final['PRED_SAME_DATE']) * 85,
+        (df_final['Open'] - df_final['Close']) * 85
+    ]
+    df_final['PnL'] = np.select(conditions, choices, default=0)
+    
     return df_final
 
 def handle_low_pnl(df_final, threshold=-70):
@@ -52,7 +88,10 @@ def handle_low_pnl(df_final, threshold=-70):
     Returns:
     - pd.DataFrame: Updated DataFrame with adjusted 'PnL' values.
     """
-    df_final['PnL'] = df_final['PnL'].apply(lambda x: threshold if x < threshold else x)
+    if 'PnL' not in df_final.columns:
+        raise KeyError("DataFrame must contain 'PnL' column to handle low PnL values.")
+    
+    df_final['PnL'] = df_final['PnL'].clip(lower=threshold)
     return df_final
 
 def calculate_efficiency(df_final):
@@ -65,7 +104,10 @@ def calculate_efficiency(df_final):
     Returns:
     - pd.DataFrame: Updated DataFrame with 'Efficiency' column.
     """
-    df_final['Efficiency'] = df_final['PnL'].apply(lambda x: 1 if x > 0 else 0)
+    if 'PnL' not in df_final.columns:
+        raise KeyError("DataFrame must contain 'PnL' column to calculate efficiency.")
+    
+    df_final['Efficiency'] = np.where(df_final['PnL'] > 0, 1, 0)
     return df_final
 
 def load_backtest_results(filepath='BT_RESULTS.csv'):
@@ -108,18 +150,22 @@ def save_backtest_results(bt_results, filepath='BT_RESULTS.csv'):
     """
     bt_results.to_csv(filepath, index=False)
 
-def perform_backtest(df_final, filepath='BT_RESULTS.csv'):
+def perform_backtest(df_final, filepath='BT_RESULTS.csv', pnl_threshold=-70):
     """
-    Perform the entire backtesting process: calculate precision, PnL, handle low PnL, calculate efficiency,
-    load existing results, append new results, calculate averages, save updated results, and return averages.
+    Perform the entire backtesting process: determine orders, calculate precision, PnL, handle low PnL,
+    calculate efficiency, load/save backtest results, and compute average metrics.
     
     Parameters:
     - df_final (pd.DataFrame): DataFrame containing prediction and actual data.
     - filepath (str): Path to the backtest results CSV file.
+    - pnl_threshold (float): The minimum PnL value allowed.
     
     Returns:
     - tuple: (average_efficiency, average_pnl)
     """
+    # Determine Trading Orders
+    df_final = determine_trading_orders(df_final)
+    
     # Calculate Precision
     df_final = calculate_precision(df_final)
     
@@ -127,7 +173,7 @@ def perform_backtest(df_final, filepath='BT_RESULTS.csv'):
     df_final = calculate_pnl(df_final)
     
     # Handle Low PnL Values
-    df_final = handle_low_pnl(df_final)
+    df_final = handle_low_pnl(df_final, threshold=pnl_threshold)
     
     # Calculate Efficiency
     df_final = calculate_efficiency(df_final)

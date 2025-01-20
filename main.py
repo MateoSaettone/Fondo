@@ -355,15 +355,6 @@ df_final = df_final.dropna()
 # print(df_final)
 
 # ============================================
-#           Add Trading Order Column
-# ============================================
-
-# Determine trading orders based on predictions
-df_final['Order'] = df_final.apply(
-    lambda row: 'CALL' if row['PRED_SAME_DATE'] > row['Open'] else 'PUT', axis=1
-)
-
-# ============================================
 #        Perform Backtesting
 # ============================================
 
