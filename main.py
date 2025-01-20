@@ -415,13 +415,15 @@ average_efficiency = bt_results['Efficiency'].mean()
 # Calculate average PnL
 average_pnl = bt_results['PnL'].mean()
 
-# Print the results
-print(f"Average Efficiency: {average_efficiency:.2f}")
-print(f"Average PnL: {average_pnl:.2f}")
-
 # ============================================
 #            Save Backtest Results
 # ============================================
 
 # Save the final backtest results to a CSV file
 df_final.to_csv('BT_RESULTS.csv')
+
+# Print the results
+print(f"Average Efficiency: {average_efficiency:.2f}")
+print(f"Average PnL: {average_pnl:.2f}")
+
+
